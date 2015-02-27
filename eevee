@@ -741,20 +741,6 @@ class eeVeeToolbar(Toolbar):
                          lambda self, obj: self._parent.entryBox.previousPage())
         self.nBtn = self.item_append("next", "Next Page",
                          lambda self, obj: self._parent.entryBox.nextPage())
-        # -- Edit Dropdown Menu --
-        '''tb_it = self.item_append("edit-copy", "Edit")
-        tb_it.menu = True
-        menu = tb_it.menu
-        menu.item_add(None, "Undo", "edit-undo", self.unDoPress)
-        menu.item_add(None, "Redo", "edit-redo", self.reDoPress)
-        menu.item_separator_add()
-        menu.item_add(None, "Copy", "edit-copy", self.copyPress)
-        menu.item_add(None, "Paste", "edit-paste", self.pastePress)
-        menu.item_add(None, "Cut", "edit-cut", self.cutPress)
-        menu.item_separator_add()
-        menu.item_add(None, "Select All", "edit-select-all",
-                      self.selectAllPress)
-'''
         #self.item_append("gtk-find", "Find",
         #                 lambda self, obj: self._parent.showFind())
         # -----------------------
