@@ -5,6 +5,7 @@ eeVee - a simple pdf reader written in Elementary and Python
 Requires:
 - [python 2.7](https://www.python.org/)
 - [pyefl >= 1.12](http://git.enlightenment.org/bindings/python/python-efl.git/)
+- [PyPDF2](https://pythonhosted.org/PyPDF2/)
 - [elmextensions](https://github.com/JeffHoogland/python-elm-extensions)
 
 TODO List:
