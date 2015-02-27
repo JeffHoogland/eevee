@@ -231,13 +231,13 @@ class Interface(object):
         self.mainBox.show()
 
         self.newInstance = NEW_INSTANCE
-        self.mainTb = ePadToolbar(self, self.mainWindow)
+        self.mainTb = eeVeeToolbar(self, self.mainWindow)
         self.mainTb.focus_allow = False
         self.mainTb.show()
 
         self.mainBox.pack_end(self.mainTb)
 
-        self.findBox = ePadFindBox(self, self.mainWindow)
+        self.findBox = eeVeeFindBox(self, self.mainWindow)
         self.findVisible = False
 
         self.scr = Scroller(self.mainBox,
@@ -405,25 +405,8 @@ class Interface(object):
 
             fs.fileEntry.text = file_selected.split("/")[-1]
 
-        IsSave = fs.mode
-
         if file_selected:
-            if IsSave == "save":
-                if os.path.isdir(file_selected):
-                    current_file = os.path.basename(file_selected)
-                    errorMsg = ("<b>'%s'</b> is a folder."
-                                "<br><br>Operation failed !!!"
-                                % (current_file))
-                    errorPopup(self.mainWindow, errorMsg)
-                    return
-                elif os.path.exists(file_selected):
-                    self.entryBox.fileExists(file_selected)
-                    return
-                else:
-                    self.entryBox.doSelected(file_selected)
-                    return
-            else:
-                self.addFile(file_selected)
+            self.addFile(file_selected)
 
     def updateLastDir(self, path):
         self.lastDir = path
@@ -440,60 +423,6 @@ class Interface(object):
     def closePopup(self, bt, confirmPopup):
         self.confirmPopup.delete()
         self.confirmPopup = None
-
-    def unsavedWorkPopup(self):
-        self.confirmPopup = Popup(self.mainWindow,
-                                  size_hint_weight=EXPAND_BOTH)
-
-        # Add a table to hold dialog image and text to Popup
-        tb = Table(self.confirmPopup, size_hint_weight=EXPAND_BOTH)
-        self.confirmPopup.part_content_set("default", tb)
-        tb.show()
-
-        # Add dialog-error Image to table
-        need_ethumb()
-        icon = Icon(self.confirmPopup, thumb='True')
-        icon.standard_set('dialog-question')
-        # Using gksudo or sudo fails to load Image here
-        #   unless options specify using preserving their existing environment.
-        #   may also fail to load other icons but does not raise an exception
-        #   in that situation.
-        # Works fine using eSudo as a gksudo alternative,
-        #   other alternatives not tested
-        try:
-            dialogImage = Image(self.confirmPopup,
-                                size_hint_weight=EXPAND_HORIZ,
-                                size_hint_align=FILL_BOTH,
-                                file=icon.file_get())
-            tb.pack(dialogImage, 0, 0, 1, 1)
-            dialogImage.show()
-        except RuntimeError:
-            # An error message is displayed for this same error
-            #   when aboutWin is initialized so no need to redisplay.
-            pass
-        # Add dialog text to table
-        dialogLabel = Label(self.confirmPopup, line_wrap=ELM_WRAP_WORD,
-                            size_hint_weight=EXPAND_HORIZ,
-                            size_hint_align=FILL_BOTH)
-        dialogLabel.text = "You have unsaved work. Close anyways?<br><br>"
-        tb.pack(dialogLabel, 1, 0, 1, 1)
-        dialogLabel.show()
-
-        # Close without saving button
-        no_btt = Button(self.mainWindow)
-        no_btt.text = "No"
-        no_btt.callback_clicked_add(self.closePopup, self.confirmPopup)
-        no_btt.show()
-        # Save the file and then close button
-        sav_btt = Button(self.mainWindow)
-        sav_btt.text = "Yes"
-        sav_btt.callback_clicked_add(self.closeApp)
-        sav_btt.show()
-
-        # add buttons to popup
-        self.confirmPopup.part_content_set("button1", no_btt)
-        self.confirmPopup.part_content_set("button3", sav_btt)
-        self.confirmPopup.show()
 
     def eventsCb(self, obj, src, event_type, event):
         #print(obj)
@@ -584,7 +513,7 @@ class FileObject(Genlist):
         self.close = cls
         self.sep = sep
 
-class ePadFindBox(Box):
+class eeVeeFindBox(Box):
     def __init__(self, parent, canvas):
         Box.__init__(self, canvas)
         self._parent = parent
@@ -726,7 +655,7 @@ class ePadFindBox(Box):
             start += len(sub) + 1
 
 
-class ePadToolbar(Toolbar):
+class eeVeeToolbar(Toolbar):
     def __init__(self, parent, canvas):
         Toolbar.__init__(self, canvas)
         self._parent = parent
@@ -819,7 +748,7 @@ if __name__ == "__main__":
 
     ourFiles = sys.argv
 
-    #Remove ePad.py from the arguments
+    #Remove eeVee.py from the arguments
     del ourFiles[0]
 
     #print(ourFiles)
