@@ -1,0 +1,11 @@
+[Desktop Entry]
+Name=eeVee
+GenericName=PDF Reader
+Comment=Simple PDF Reader
+Exec=eevee
+Icon=accessories-document-viewer
+Terminal=false
+Type=Application
+Categories=EFL;Office;
+Actions=Window;Document;
+StartupWMClass=eevee
