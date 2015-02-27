@@ -488,7 +488,7 @@ class FileObject(Box):
         self.gl.show()
         
         self.glItems = []
-        
+        self.zoomFactor = 1.0
         self.currentPage = 1
         
         self.ourPdf = PyPDF2.PdfFileReader(imageFile)
@@ -496,7 +496,7 @@ class FileObject(Box):
         
         #print(self.ourPdf.getDocumentInfo())
         #print(self.ourPdf.getFields())
-        #print(self.ourPdf.getOutlines()) #Looks like use information
+        print(self.ourPdf.getOutlines()) #Looks like use information
         #print(self.ourPdf.getXmpMetadata())
         
         def gl_text_get(obj, part, item_data):
@@ -506,8 +506,8 @@ class FileObject(Box):
             img = FilledImage(self.evas)
 
             img.file = (imageFile, str(data))
-            img.size_hint_min = img.image_size
-            img.size_hint_max = img.image_size
+            img.size_hint_min = (img.image_size[0] * self.zoomFactor, img.image_size[1] * self.zoomFactor)
+            img.size_hint_max = (img.image_size[0] * self.zoomFactor, img.image_size[1] * self.zoomFactor)
             return img
 
         def gl_state_get(obj, part, item_data):
@@ -560,7 +560,9 @@ class FileObject(Box):
             obj.text = str(self.currentPage)
     
     def glMoved(self, obj=None, item=None, curPage=None):
-        if not curPage:
+        #print(self.gl.realized_items_get())
+        #item = self.gl.realized_items_get()[0]
+        if not isinstance( curPage, ( int, long ) ):
             curPage = item.data_get() + 1
         self.currentPage = curPage
         self.pageNumEntry.text = str(curPage)
@@ -568,10 +570,21 @@ class FileObject(Box):
         self.rent.mainTb.checkButtons()
     
     def previousPage(self, obj=None):
-        self.glItems[self.currentPage - 2].bring_in(ELM_GENLIST_ITEM_SCROLLTO_MIDDLE)
+        self.glMoved(curPage=self.currentPage-1)
+        self.glItems[self.currentPage - 1].bring_in(ELM_GENLIST_ITEM_SCROLLTO_MIDDLE)
         
     def nextPage(self, obj=None):
+        self.glMoved(curPage=self.currentPage)
         self.glItems[self.currentPage].bring_in(ELM_GENLIST_ITEM_SCROLLTO_MIDDLE)
+        
+    def zoomIncrease(self, obj=None):
+        self.zoomFactor += 0.2
+        self.gl.realized_items_update()
+    
+    def zoomDecrease(self, obj=None):
+        self.zoomFactor -= 0.2
+        self.zoomFactor = max(self.zoomFactor, 0.2)
+        self.gl.realized_items_update()
             
     def setWidgets(self, btn, cls, sep):
         self.button = btn
@@ -739,8 +752,14 @@ class eeVeeToolbar(Toolbar):
                          lambda self, obj: self._parent.openFile())
         self.pBtn = self.item_append("previous", "Preivious Page",
                          lambda self, obj: self._parent.entryBox.previousPage())
+        self.pBtn.disabled = True
         self.nBtn = self.item_append("next", "Next Page",
                          lambda self, obj: self._parent.entryBox.nextPage())
+        self.nBtn.disabled = True
+        self.item_append("zoom-in", "Zoom In",
+                         lambda self, obj: self._parent.entryBox.zoomIncrease())
+        self.item_append("zoom-out", "Zoom Out",
+                         lambda self, obj: self._parent.entryBox.zoomDecrease())
         #self.item_append("gtk-find", "Find",
         #                 lambda self, obj: self._parent.showFind())
         # -----------------------
