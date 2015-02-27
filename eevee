@@ -95,7 +95,7 @@ from efl.elementary.check import Check
 from efl.evas import EVAS_HINT_EXPAND, EVAS_HINT_FILL
 from efl.elementary.naviframe import Naviframe
 from efl.ecore import Exe
-from efl.elementary.genlist import Genlist, GenlistItem, GenlistItemClass
+from efl.elementary.genlist import Genlist, GenlistItem, GenlistItemClass, ELM_GENLIST_ITEM_SCROLLTO_MIDDLE
 
 import efl.evas as evas
 evas.init()
@@ -362,9 +362,6 @@ class Interface(object):
         if self.entryBox != btn.data["entry"]:
             self.setFile(btn.data["entry"], btn.text)
 
-    def newFile(self, obj=None, ignoreSave=False):
-        self.addFile("Untitled")
-
     def openFile(self, obj=None, ignoreSave=False):
         self.fileSelector.setMode("Open")
         self.fileLabel.text = "<b>Select a text file to open:</b>"
@@ -479,15 +476,31 @@ class Interface(object):
         
         self.mainWindow.show()
 
-class FileObject(Genlist):
+class FileObject(Box):
     def __init__(self, parent, imageFile):
-        Genlist.__init__(self, parent.mainWindow, size_hint_align=FILL_BOTH, size_hint_weight=EXPAND_BOTH)
+        Box.__init__(self, parent.mainWindow, size_hint_align=FILL_BOTH, size_hint_weight=EXPAND_BOTH)
+        
+        self.rent = parent
+        
+        self.gl = Genlist(self, size_hint_align=FILL_BOTH, size_hint_weight=EXPAND_BOTH)
+        self.gl.callback_item_focused_add(self.glMoved)
+        self.gl.callback_realized_add(self.glMoved)
+        self.gl.show()
+        
+        self.glItems = []
+        
+        self.currentPage = 1
         
         self.ourPdf = PyPDF2.PdfFileReader(imageFile)
         self.pageCount = self.ourPdf.getNumPages()
         
+        #print(self.ourPdf.getDocumentInfo())
+        #print(self.ourPdf.getFields())
+        #print(self.ourPdf.getOutlines()) #Looks like use information
+        #print(self.ourPdf.getXmpMetadata())
+        
         def gl_text_get(obj, part, item_data):
-            return "Item # %i" % (item_data,)
+            return item_data
 
         def gl_content_get(obj, part, data):
             img = FilledImage(self.evas)
@@ -506,7 +519,59 @@ class FileObject(Genlist):
                                 state_get_func=gl_state_get)
         
         for i in range(self.pageCount):
-            self.item_append(itc1, i)
+            glItem = self.gl.item_append(itc1, i)
+            self.glItems.append(glItem)
+        
+        bbox = Box(self)
+        bbox.horizontal = True
+        bbox.show()
+        
+        lbl1 = Label(self)
+        lbl1.text = "Page "
+        lbl1.show()
+        
+        self.pageNumEntry = Entry(self)
+        self.pageNumEntry.single_line_set(True)
+        self.pageNumEntry.text = "1"
+        self.pageNumEntry.callback_activated_add(self.pageNumEnter)
+        self.pageNumEntry.show()
+        
+        lbl2 = Label(self)
+        lbl2.text = " of %s"%self.pageCount
+        lbl2.show()
+        
+        bbox.pack_end(lbl1)
+        bbox.pack_end(self.pageNumEntry)
+        bbox.pack_end(lbl2)
+        
+        self.pack_end(self.gl)
+        self.pack_end(bbox)
+    
+    def pageNumEnter(self, obj):
+        try:
+            newPage = int(obj.text)
+        except:
+            obj.text = str(self.currentPage)
+            return
+        
+        if newPage <= self.pageCount:
+            self.glItems[newPage -1].bring_in(ELM_GENLIST_ITEM_SCROLLTO_MIDDLE)
+        else:
+            obj.text = str(self.currentPage)
+    
+    def glMoved(self, obj=None, item=None, curPage=None):
+        if not curPage:
+            curPage = item.data_get() + 1
+        self.currentPage = curPage
+        self.pageNumEntry.text = str(curPage)
+        
+        self.rent.mainTb.checkButtons()
+    
+    def previousPage(self, obj=None):
+        self.glItems[self.currentPage - 2].bring_in(ELM_GENLIST_ITEM_SCROLLTO_MIDDLE)
+        
+    def nextPage(self, obj=None):
+        self.glItems[self.currentPage].bring_in(ELM_GENLIST_ITEM_SCROLLTO_MIDDLE)
             
     def setWidgets(self, btn, cls, sep):
         self.button = btn
@@ -669,14 +734,12 @@ class eeVeeToolbar(Toolbar):
 
         self.menu_parent = canvas
 
-        #self.item_append("document-new", "New",
-        #                 lambda self, obj: self._parent.newFile())
         self.item_append("document-open", "Open",
                          lambda self, obj: self._parent.openFile())
-        #self.item_append("document-save", "Save",
-        #                 lambda self, obj: self._parent.saveFile())
-        #self.item_append("document-save-as", "Save As",
-        #                 lambda self, obj: self._parent.saveAs())
+        self.pBtn = self.item_append("previous", "Preivious Page",
+                         lambda self, obj: self._parent.entryBox.previousPage())
+        self.nBtn = self.item_append("next", "Next Page",
+                         lambda self, obj: self._parent.entryBox.nextPage())
         # -- Edit Dropdown Menu --
         '''tb_it = self.item_append("edit-copy", "Edit")
         tb_it.menu = True
@@ -704,22 +767,26 @@ class eeVeeToolbar(Toolbar):
         self.item_append("dialog-information", "About",
                          self.showAbout)
 
+    def checkButtons(self):
+        en = self._parent.entryBox
+        
+        if en.currentPage == 1:
+            self.pBtn.disabled = True
+        else:
+            self.pBtn.disabled = False
+        
+        if en.currentPage == en.pageCount:
+            self.nBtn.disabled = True
+        else:
+            self.nBtn.disabled = False
+        
+        
+
     def showAbout(self, obj, it):
         AboutWindow(self, title="eeVee", standardicon="accessories-document-viewer", \
                         version=__version__, authors=AUTHORS, \
                         licen=LICENSE, webaddress=__github__, \
                         info=INFO)
-
-    def optionsWWPress(self, obj, it):
-        wordwrap = self._parent.entryBox.mainEn.line_wrap
-        if wordwrap == ELM_WRAP_MIXED:
-            wordwrap = ELM_WRAP_NONE
-            it.content.state = False
-        else:
-            wordwrap = ELM_WRAP_MIXED
-            it.content.state = True
-        self._parent.entryBox.mainEn.line_wrap = wordwrap
-        resetCloseMenuCount(None)
 
     def copyPress(self, obj, it):
         self._parent.entryBox.mainEn.selection_copy()
@@ -731,14 +798,6 @@ class eeVeeToolbar(Toolbar):
             item.selected_set(False)
         elif item.menu_get():
             closeMenu(item, item.text_get())
-
-    def pastePress(self, obj, it):
-        self._parent.entryBox.mainEn.selection_paste()
-        resetCloseMenuCount(None)
-
-    def cutPress(self, obj, it):
-        self._parent.entryBox.mainEn.selection_cut()
-        resetCloseMenuCount(None)
 
     def selectAllPress(self, obj, it):
         self._parent.entryBox.mainEn.select_all()
