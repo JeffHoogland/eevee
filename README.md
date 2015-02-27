@@ -1,6 +1,6 @@
 eeVee - a simple pdf reader written in Elementary and Python
 
-![alt text](http://www.enlightenment.org/ss/e-54f05b9703e301.98587135.jpg "eeVee")
+![alt text](https://www.enlightenment.org/ss/e-54f05cf6e2cb25.49015879.png "eeVee")
 
 Requires:
 - [python 2.7](https://www.python.org/)
