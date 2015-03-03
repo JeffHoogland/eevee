@@ -96,7 +96,7 @@ from efl.evas import EVAS_HINT_EXPAND, EVAS_HINT_FILL
 from efl.elementary.naviframe import Naviframe
 from efl.ecore import Exe
 from efl.elementary.genlist import Genlist, GenlistItem, GenlistItemClass, \
-        ELM_GENLIST_ITEM_SCROLLTO_TOP, ELM_OBJECT_SELECT_MODE_NONE
+        ELM_GENLIST_ITEM_SCROLLTO_TOP, ELM_OBJECT_SELECT_MODE_NONE, ELM_LIST_EXPAND
 
 import efl.evas as evas
 evas.init()
@@ -487,6 +487,7 @@ class FileObject(Box):
         self.gl.callback_scroll_add(self.glMoved)
         self.gl.callback_realized_add(self.glMoved)
         self.gl.select_mode_set(ELM_OBJECT_SELECT_MODE_NONE)
+        #self.gl.mode_set(ELM_LIST_EXPAND)
         self.gl.show()
         
         self.glItems = []
@@ -510,6 +511,11 @@ class FileObject(Box):
             img.file = (imageFile, str(data))
             img.size_hint_min = (img.image_size[0] * self.zoomFactor, img.image_size[1] * self.zoomFactor)
             img.size_hint_max = (img.image_size[0] * self.zoomFactor, img.image_size[1] * self.zoomFactor)
+            
+            # XXX: Hack, the only way that a pdf seems to load with more dpi is to give
+            #      a bogus value in load_dpi and the desired value in load_size
+            img.load_dpi = 1
+            img.load_size = img.image_size[0] * self.zoomFactor, img.image_size[1] * self.zoomFactor
             return img
 
         def gl_state_get(obj, part, item_data):
