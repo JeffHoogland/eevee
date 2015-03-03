@@ -77,7 +77,7 @@ from efl.elementary.icon import Icon
 from efl.elementary.need import need_ethumb
 from efl.elementary.notify import Notify, ELM_NOTIFY_ALIGN_FILL
 from efl.elementary.separator import Separator
-from efl.elementary.scroller import Scroller
+from efl.elementary.scroller import Scroller, Scrollable
 from efl.elementary.image import Image
 from efl.elementary.frame import Frame
 from efl.elementary.list import List
@@ -95,7 +95,8 @@ from efl.elementary.check import Check
 from efl.evas import EVAS_HINT_EXPAND, EVAS_HINT_FILL
 from efl.elementary.naviframe import Naviframe
 from efl.ecore import Exe
-from efl.elementary.genlist import Genlist, GenlistItem, GenlistItemClass, ELM_GENLIST_ITEM_SCROLLTO_MIDDLE
+from efl.elementary.genlist import Genlist, GenlistItem, GenlistItemClass, \
+        ELM_GENLIST_ITEM_SCROLLTO_TOP, ELM_OBJECT_SELECT_MODE_NONE
 
 import efl.evas as evas
 evas.init()
@@ -482,9 +483,10 @@ class FileObject(Box):
         
         self.rent = parent
         
-        self.gl = Genlist(self, size_hint_align=FILL_BOTH, size_hint_weight=EXPAND_BOTH)
-        self.gl.callback_item_focused_add(self.glMoved)
+        self.gl = ScrollableGenlist(self, size_hint_align=FILL_BOTH, size_hint_weight=EXPAND_BOTH)
+        self.gl.callback_scroll_add(self.glMoved)
         self.gl.callback_realized_add(self.glMoved)
+        self.gl.select_mode_set(ELM_OBJECT_SELECT_MODE_NONE)
         self.gl.show()
         
         self.glItems = []
@@ -555,13 +557,13 @@ class FileObject(Box):
             return
         
         if newPage <= self.pageCount:
-            self.glItems[newPage -1].bring_in(ELM_GENLIST_ITEM_SCROLLTO_MIDDLE)
+            self.glItems[newPage -1].bring_in(ELM_GENLIST_ITEM_SCROLLTO_TOP)
         else:
             obj.text = str(self.currentPage)
     
     def glMoved(self, obj=None, item=None, curPage=None):
-        #print(self.gl.realized_items_get())
-        #item = self.gl.realized_items_get()[0]
+        items = self.gl.realized_items_get()
+        item = items[len(items)-1]
         if not isinstance( curPage, ( int, long ) ):
             curPage = item.data_get() + 1
         self.currentPage = curPage
@@ -571,11 +573,11 @@ class FileObject(Box):
     
     def previousPage(self, obj=None):
         self.glMoved(curPage=self.currentPage-1)
-        self.glItems[self.currentPage - 1].bring_in(ELM_GENLIST_ITEM_SCROLLTO_MIDDLE)
+        self.glItems[self.currentPage - 1].bring_in(ELM_GENLIST_ITEM_SCROLLTO_TOP)
         
     def nextPage(self, obj=None):
         self.glMoved(curPage=self.currentPage)
-        self.glItems[self.currentPage].bring_in(ELM_GENLIST_ITEM_SCROLLTO_MIDDLE)
+        self.glItems[self.currentPage].bring_in(ELM_GENLIST_ITEM_SCROLLTO_TOP)
         
     def zoomIncrease(self, obj=None):
         self.zoomFactor += 0.2
@@ -808,6 +810,10 @@ class eeVeeToolbar(Toolbar):
     def selectAllPress(self, obj, it):
         self._parent.entryBox.mainEn.select_all()
         resetCloseMenuCount(None)
+
+class ScrollableGenlist(Genlist, Scrollable):
+    def __init__(self, *args, **kwargs):
+        Genlist.__init__(self, *args, **kwargs)
 
 if __name__ == "__main__":
 
