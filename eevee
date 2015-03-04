@@ -62,6 +62,11 @@ import sys
 import os
 import time
 import urllib
+try:
+    # Python3
+    import urllib.request
+except ImportError:
+    pass
 import re
 
 from efl import ecore
@@ -94,6 +99,8 @@ from efl.elementary.transit import Transit, \
 from efl.elementary.check import Check
 from efl.evas import EVAS_HINT_EXPAND, EVAS_HINT_FILL
 from efl.elementary.naviframe import Naviframe
+from efl.elementary.panes import Panes
+from efl.elementary.list import List
 from efl.ecore import Exe
 from efl.elementary.genlist import Genlist, GenlistItem, GenlistItemClass, \
         ELM_GENLIST_ITEM_SCROLLTO_MIDDLE, ELM_OBJECT_SELECT_MODE_NONE, ELM_LIST_EXPAND
@@ -458,7 +465,11 @@ class Interface(object):
         if start and start[0]:
             for ourFile in start[0]:
                 if ourFile[:7] == "file://":
-                    ourFile = urllib.url2pathname(ourFile[7:])
+                    try:
+                        ourFile = urllib.url2pathname(ourFile[7:])
+                    except AttributeError:
+                        # Python3
+                        ourFile = urllib.request.url2pathname(ourFile[7:])
                 if os.path.isdir(os.path.dirname(ourFile)):
                     if os.path.isfile(ourFile):
                         #print(ourFile)
@@ -494,6 +505,7 @@ class FileObject(Box):
         self.zoomFactor = 1.0
         self.currentPage = 1
         self.bookmarks = []
+        self.bkList = None
         
         #self.ourPdf = PyPDF2.PdfFileReader(imageFile)
         self.ourPdf = PdfOutline(open(imageFile, 'rb'))
@@ -507,7 +519,7 @@ class FileObject(Box):
         else:
             self.bookmarks = None
         
-        print(self.bookmarks)
+        #print(self.bookmarks)
         
         def gl_text_get(obj, part, item_data):
             return item_data
@@ -559,15 +571,42 @@ class FileObject(Box):
         bbox.pack_end(self.pageNumEntry)
         bbox.pack_end(lbl2)
         
-        self.pack_end(self.gl)
+        if self.bookmarks:
+            panes = Panes(self, content_left_size=0.3,
+                      size_hint_weight=EXPAND_BOTH, size_hint_align=FILL_BOTH)
+            panes.show()
+            
+            self.bkList = List(self)
+            
+            for bk in self.bookmarks:
+                lbl = Label(self)
+                lbl.text = str(bk[0])
+                lbl.show()
+                it = self.bkList.item_append(bk[1], end=lbl)
+                it.data["page"] = bk[0]+1
+            
+            self.bkList.callback_activated_add(self.bookmarkDoubleClicked)
+            self.bkList.go()
+            self.bkList.show()
+            
+            panes.part_content_set("left", self.bkList)
+            panes.part_content_set("right", self.gl)
+            
+            self.pack_end(panes)
+        else:
+            self.pack_end(self.gl)
         self.pack_end(bbox)
     
-    def pageNumEnter(self, obj):
-        try:
-            newPage = int(obj.text)
-        except:
-            obj.text = str(self.currentPage)
-            return
+    def bookmarkDoubleClicked(self, obj, item=None, eventData=None):
+        self.pageNumEnter(newPage=item.data["page"])
+    
+    def pageNumEnter(self, obj=None, newPage=None):
+        if not newPage:
+            try:
+                newPage = int(obj.text)
+            except:
+                obj.text = str(self.currentPage)
+                return
         
         if newPage <= self.pageCount:
             self.glItems[newPage -1].bring_in(ELM_GENLIST_ITEM_SCROLLTO_MIDDLE)
@@ -618,7 +657,8 @@ class FileObject(Box):
         self.sep = sep
 
 class PdfOutline(PyPDF2.PdfFileReader):
-
+    """getDestinationPageNumbers allows us to return bookmarks
+        with page numbers in a pdf"""
     def getDestinationPageNumbers(self):
 
         def _setup_outline_page_ids(outline, _result=None):

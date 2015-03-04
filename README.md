@@ -1,6 +1,6 @@
 eeVee - a simple pdf reader written in Elementary and Python
 
-![alt text](https://www.enlightenment.org/ss/e-54f05cf6e2cb25.49015879.png "eeVee")
+![alt text](http://www.enlightenment.org/ss/e-54f72875cb3294.10448213.png "eeVee")
 
 Requires:
 - [python 2.7](https://www.python.org/)
@@ -9,8 +9,8 @@ Requires:
 - [elmextensions](https://github.com/JeffHoogland/python-elm-extensions)
 
 TODO List:
-- Clean out ePad code that isn't needed
-- Features
+- Add loading screen for large pdfs
+- Finding/selecting text
 
 Credits:
 - [Jeff Hoogland](http://www.jeffhoogland.com/)
