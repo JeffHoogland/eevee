@@ -508,7 +508,7 @@ class FileObject(Box):
         def gl_content_get(obj, part, data):
             img = FilledImage(self.evas)
 
-            img.file = (imageFile, str(data))
+            img.file = (imageFile, str(data[0]))
             img.size_hint_min = (img.image_size[0] * self.zoomFactor, img.image_size[1] * self.zoomFactor)
             img.size_hint_max = (img.image_size[0] * self.zoomFactor, img.image_size[1] * self.zoomFactor)
             
@@ -527,7 +527,7 @@ class FileObject(Box):
                                 state_get_func=gl_state_get)
         
         for i in range(self.pageCount):
-            glItem = self.gl.item_append(itc1, i)
+            glItem = self.gl.item_append(itc1, [i, 1.0] )
             self.glItems.append(glItem)
         
         bbox = Box(self)
@@ -569,9 +569,13 @@ class FileObject(Box):
     
     def glMoved(self, obj=None, item=None, curPage=None):
         items = self.gl.realized_items_get()
+        for i in items:
+            if i.data[1] != self.zoomFactor:
+                i.update()
+                i.data[1] = self.zoomFactor
         item = items[len(items)-1]
         if not isinstance( curPage, ( int, long ) ):
-            curPage = item.data_get() + 1
+            curPage = item.data_get()[0] + 1
         self.currentPage = curPage
         self.pageNumEntry.text = str(curPage)
         
@@ -587,12 +591,19 @@ class FileObject(Box):
         
     def zoomIncrease(self, obj=None):
         self.zoomFactor += 0.2
-        self.gl.realized_items_update()
+        self.pageHeightUpdate()
     
     def zoomDecrease(self, obj=None):
         self.zoomFactor -= 0.2
         self.zoomFactor = max(self.zoomFactor, 0.2)
-        self.gl.realized_items_update()
+        self.pageHeightUpdate()
+    
+    def pageHeightUpdate(self):
+        items = self.gl.realized_items_get()
+        for i in items:
+            if i.data[1] != self.zoomFactor:
+                i.update()
+                i.data[1] = self.zoomFactor
             
     def setWidgets(self, btn, cls, sep):
         self.button = btn
@@ -786,8 +797,8 @@ class eeVeeToolbar(Toolbar):
         
         items = en.gl.realized_items_get()
         
-        firstPageNum = items[0].data_get() + 1
-        lastPageNum = items[len(items) - 1].data_get() + 1
+        firstPageNum = items[0].data_get()[0] + 1
+        lastPageNum = items[len(items) - 1].data_get()[0] + 1
         
         if firstPageNum == 1:
             self.pBtn.disabled = True
