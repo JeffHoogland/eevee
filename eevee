@@ -619,7 +619,8 @@ class FileObject(Box):
             if i.data[1] != self.zoomFactor:
                 i.update()
                 i.data[1] = self.zoomFactor
-        item = items[0]
+        
+        item = items[(len(items)+1)/2 - 1]
         if not isinstance( curPage, ( int, long ) ):
             curPage = item.data_get()[0] + 1
         self.currentPage = curPage
@@ -881,17 +882,12 @@ class eeVeeToolbar(Toolbar):
     def checkButtons(self):
         en = self._parent.entryBox
         
-        items = en.gl.realized_items_get()
-        
-        firstPageNum = items[0].data_get()[0] + 1
-        lastPageNum = items[len(items) - 1].data_get()[0] + 1
-        
-        if firstPageNum == 1:
+        if en.currentPage == 1:
             self.pBtn.disabled = True
         else:
             self.pBtn.disabled = False
         
-        if lastPageNum == en.pageCount:
+        if en.currentPage == en.pageCount:
             self.nBtn.disabled = True
         else:
             self.nBtn.disabled = False
