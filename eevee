@@ -96,7 +96,7 @@ from efl.evas import EVAS_HINT_EXPAND, EVAS_HINT_FILL
 from efl.elementary.naviframe import Naviframe
 from efl.ecore import Exe
 from efl.elementary.genlist import Genlist, GenlistItem, GenlistItemClass, \
-        ELM_GENLIST_ITEM_SCROLLTO_TOP, ELM_OBJECT_SELECT_MODE_NONE, ELM_LIST_EXPAND
+        ELM_GENLIST_ITEM_SCROLLTO_MIDDLE, ELM_OBJECT_SELECT_MODE_NONE, ELM_LIST_EXPAND
 
 import efl.evas as evas
 evas.init()
@@ -563,7 +563,7 @@ class FileObject(Box):
             return
         
         if newPage <= self.pageCount:
-            self.glItems[newPage -1].bring_in(ELM_GENLIST_ITEM_SCROLLTO_TOP)
+            self.glItems[newPage -1].bring_in(ELM_GENLIST_ITEM_SCROLLTO_MIDDLE)
         else:
             obj.text = str(self.currentPage)
     
@@ -579,11 +579,11 @@ class FileObject(Box):
     
     def previousPage(self, obj=None):
         self.glMoved(curPage=self.currentPage-1)
-        self.glItems[self.currentPage - 1].bring_in(ELM_GENLIST_ITEM_SCROLLTO_TOP)
+        self.glItems[self.currentPage - 1].bring_in(ELM_GENLIST_ITEM_SCROLLTO_MIDDLE)
         
     def nextPage(self, obj=None):
         self.glMoved(curPage=self.currentPage)
-        self.glItems[self.currentPage].bring_in(ELM_GENLIST_ITEM_SCROLLTO_TOP)
+        self.glItems[self.currentPage].bring_in(ELM_GENLIST_ITEM_SCROLLTO_MIDDLE)
         
     def zoomIncrease(self, obj=None):
         self.zoomFactor += 0.2
@@ -784,17 +784,20 @@ class eeVeeToolbar(Toolbar):
     def checkButtons(self):
         en = self._parent.entryBox
         
-        if en.currentPage == 1:
+        items = en.gl.realized_items_get()
+        
+        firstPageNum = items[0].data_get() + 1
+        lastPageNum = items[len(items) - 1].data_get() + 1
+        
+        if firstPageNum == 1:
             self.pBtn.disabled = True
         else:
             self.pBtn.disabled = False
         
-        if en.currentPage == en.pageCount:
+        if lastPageNum == en.pageCount:
             self.nBtn.disabled = True
         else:
             self.nBtn.disabled = False
-        
-        
 
     def showAbout(self, obj, it):
         AboutWindow(self, title="eeVee", standardicon="accessories-document-viewer", \
