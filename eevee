@@ -882,12 +882,17 @@ class eeVeeToolbar(Toolbar):
     def checkButtons(self):
         en = self._parent.entryBox
         
-        if en.currentPage == 1:
+        items = en.gl.realized_items_get()
+        
+        firstItem = items[0]
+        lastItem = items[len(items)-1]
+        
+        if firstItem.data_get()[0] + 1 == 1:
             self.pBtn.disabled = True
         else:
             self.pBtn.disabled = False
         
-        if en.currentPage == en.pageCount:
+        if lastItem.data_get()[0] + 1 == en.pageCount:
             self.nBtn.disabled = True
         else:
             self.nBtn.disabled = False
