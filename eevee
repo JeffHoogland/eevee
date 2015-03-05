@@ -621,7 +621,7 @@ class FileObject(Box):
                 i.data[1] = self.zoomFactor
         
         item = items[(len(items)+1)/2 - 1]
-        if not isinstance( curPage, ( int, long ) ):
+        if not isinstance( curPage, int  ):
             curPage = item.data_get()[0] + 1
         self.currentPage = curPage
         self.pageNumEntry.text = str(curPage)
@@ -691,7 +691,7 @@ class PdfOutline(PyPDF2.PdfFileReader):
         page_id_to_page_numbers = _setup_page_id_to_num()
 
         result = {}
-        for (_, title), page_idnum in outline_page_ids.iteritems():
+        for (_, title), page_idnum in outline_page_ids.items():
             if isinstance(title, PyPDF2.generic.TextStringObject):
                 title = title.encode('utf-8')
             result[title] = page_id_to_page_numbers.get(page_idnum, '???')
