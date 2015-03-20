@@ -90,9 +90,11 @@ from efl.elementary.frame import Frame
 from efl.elementary.entry import Entry, ELM_TEXT_FORMAT_PLAIN_UTF8, \
         markup_to_utf8, utf8_to_markup, ELM_WRAP_NONE, ELM_WRAP_MIXED
 from efl.elementary.popup import Popup
+from efl.elementary.progressbar import Progressbar
 from efl.elementary.toolbar import Toolbar, ELM_OBJECT_SELECT_MODE_DEFAULT
 from efl.elementary.flip import Flip, ELM_FLIP_ROTATE_XZ_CENTER_AXIS, \
-        ELM_FLIP_ROTATE_YZ_CENTER_AXIS, ELM_FLIP_INTERACTION_ROTATE
+        ELM_FLIP_ROTATE_YZ_CENTER_AXIS, ELM_FLIP_INTERACTION_ROTATE, \
+        ELM_FLIP_CUBE_DOWN
 from efl.elementary.table import Table
 from efl.elementary.transit import Transit, \
         ELM_TRANSIT_EFFECT_WIPE_TYPE_HIDE, ELM_TRANSIT_EFFECT_WIPE_DIR_RIGHT
@@ -106,6 +108,7 @@ from efl.elementary.genlist import Genlist, GenlistItem, GenlistItemClass, \
         ELM_GENLIST_ITEM_SCROLLTO_MIDDLE, ELM_OBJECT_SELECT_MODE_NONE, ELM_LIST_EXPAND
 
 import efl.evas as evas
+from efl import ecore
 evas.init()
 from efl.evas import FilledImage
 
@@ -372,7 +375,7 @@ class Interface(object):
 
     def openFile(self, obj=None, ignoreSave=False):
         self.fileSelector.setMode("Open")
-        self.fileLabel.text = "<b>Select a text file to open:</b>"
+        self.fileLabel.text = "<b>Select a PDF file to open:</b>"
         if self.fileSelector.filepathEntry.text != self.lastDir:
             self.fileSelector.populateFiles(self.lastDir)
         self.flip.go(ELM_FLIP_ROTATE_YZ_CENTER_AXIS)
@@ -488,23 +491,25 @@ class Interface(object):
         
         self.mainWindow.show()
 
-class FileObject(Box):
+class FileObject(Flip):
     def __init__(self, parent, imageFile):
-        Box.__init__(self, parent.mainWindow, size_hint_align=FILL_BOTH, size_hint_weight=EXPAND_BOTH)
+        Flip.__init__(self, parent.mainWindow, size_hint_align=FILL_BOTH, size_hint_weight=EXPAND_BOTH)
         
+        self.bx = Box(self, size_hint_align=FILL_BOTH, size_hint_weight=EXPAND_BOTH)
+        self.bx.show()
+        
+        self.imageFile = imageFile
         self.rent = parent
         
         self.gl = ScrollableGenlist(self, size_hint_align=FILL_BOTH, size_hint_weight=EXPAND_BOTH)
-        self.gl.callback_scroll_add(self.glMoved)
-        self.gl.callback_realized_add(self.glMoved)
         self.gl.select_mode_set(ELM_OBJECT_SELECT_MODE_NONE)
-        #self.gl.mode_set(ELM_LIST_EXPAND)
         self.gl.show()
         
         self.glItems = []
         self.zoomFactor = 1.0
         self.currentPage = 1
         self.bookmarks = []
+        self.pageBreaks = {}
         self.bkList = None
         
         #self.ourPdf = PyPDF2.PdfFileReader(imageFile)
@@ -520,34 +525,6 @@ class FileObject(Box):
             self.bookmarks = None
         
         #print(self.bookmarks)
-        
-        def gl_text_get(obj, part, item_data):
-            return item_data
-
-        def gl_content_get(obj, part, data):
-            img = FilledImage(self.evas)
-
-            img.file = (imageFile, str(data[0]))
-            img.size_hint_min = (img.image_size[0] * self.zoomFactor, img.image_size[1] * self.zoomFactor)
-            img.size_hint_max = (img.image_size[0] * self.zoomFactor, img.image_size[1] * self.zoomFactor)
-            
-            # XXX: Hack, the only way that a pdf seems to load with more dpi is to give
-            #      a bogus value in load_dpi and the desired value in load_size
-            img.load_dpi = 1
-            img.load_size = img.image_size[0] * self.zoomFactor, img.image_size[1] * self.zoomFactor
-            return img
-
-        def gl_state_get(obj, part, item_data):
-            return False
-
-        itc1 = GenlistItemClass(item_style="full",
-                                text_get_func=gl_text_get,
-                                content_get_func=gl_content_get,
-                                state_get_func=gl_state_get)
-        
-        for i in range(self.pageCount):
-            glItem = self.gl.item_append(itc1, [i, 1.0] )
-            self.glItems.append(glItem)
         
         bbox = Box(self)
         bbox.horizontal = True
@@ -592,10 +569,86 @@ class FileObject(Box):
             panes.part_content_set("left", self.bkList)
             panes.part_content_set("right", self.gl)
             
-            self.pack_end(panes)
+            self.bx.pack_end(panes)
         else:
-            self.pack_end(self.gl)
-        self.pack_end(bbox)
+            self.bx.pack_end(self.gl)
+        self.bx.pack_end(bbox)
+        
+        frntbx = Box(self, size_hint_align=FILL_BOTH, size_hint_weight=EXPAND_BOTH)
+        frntbx.show()
+        
+        lbl = Label(self, size_hint_align=FILL_BOTH, size_hint_weight=(1.0, .25))
+        lbl.text = "<i>Parsing PDF File...</i>"
+        lbl.show()
+        
+        self.pb = wheel = Progressbar(self,
+                            size_hint_weight=EXPAND_BOTH,
+                            size_hint_align=FILL_HORIZ)
+        wheel.pulse(True)
+        wheel.show()
+        
+        frntbx.pack_end(lbl)
+        frntbx.pack_end(wheel)
+        
+        self.part_content_set("back", self.bx)
+        self.part_content_set("front", frntbx)
+        
+        #Loop to populate pages without locking up GUI
+        self._timer = ecore.Timer(0.05, self.checkPages)
+    
+    def checkPages(self):
+        popped_pages = len(self.glItems)
+        if popped_pages < self.pageCount:
+            self.loadPage(popped_pages)
+            progress = self.pb.value_get()
+            if progress < 1.0:
+                progress += (1.0 / self.pageCount)
+            self.pb.value_set(progress)
+        else:
+            self._timer.delete()
+            self.go(ELM_FLIP_CUBE_DOWN)
+            self.glMoved()
+            self.gl.callback_scroll_add(self.glMoved)
+        
+        return True
+    
+    def loadPage(self, pgNm):
+        def gl_text_get(obj, part, item_data):
+            return item_data
+
+        def gl_content_get(obj, part, data):
+            img = FilledImage(self.evas)
+
+            img.file = (self.imageFile, str(data[0]))
+            img.size_hint_min = (img.image_size[0] * self.zoomFactor, img.image_size[1] * self.zoomFactor)
+            img.size_hint_max = (img.image_size[0] * self.zoomFactor, img.image_size[1] * self.zoomFactor)
+            
+            if data[0] not in self.pageBreaks:
+                print("Page %s Height %s"%(data[0], img.image_size[1]))
+                currentSpot = 0
+                if data[0] > 0:
+                    currentSpot += self.pageBreaks[data[0] - 1]
+                self.pageBreaks[data[0]] = currentSpot + img.image_size[1]
+            
+            print("Genlist callback for page %s"%data[0])
+            
+            # XXX: Hack, the only way that a pdf seems to load with more dpi is to give
+            #      a bogus value in load_dpi and the desired value in load_size
+            img.load_dpi = 1
+            img.load_size = img.image_size[0] * self.zoomFactor, img.image_size[1] * self.zoomFactor
+            return img
+
+        def gl_state_get(obj, part, item_data):
+            return False
+
+        itc1 = GenlistItemClass(item_style="full",
+                                text_get_func=gl_text_get,
+                                content_get_func=gl_content_get,
+                                state_get_func=gl_state_get)
+        
+        #for i in range(self.pageCount):
+        glItem = self.gl.item_append(itc1, [pgNm, 1.0] )
+        self.glItems.append(glItem)
     
     def bookmarkDoubleClicked(self, obj, item=None, eventData=None):
         self.pageNumEnter(newPage=item.data["page"])
@@ -614,26 +667,26 @@ class FileObject(Box):
             obj.text = str(self.currentPage)
     
     def glMoved(self, obj=None, item=None, curPage=None):
-        items = self.gl.realized_items_get()
-        for i in items:
-            if i.data[1] != self.zoomFactor:
-                i.update()
-                i.data[1] = self.zoomFactor
+        #print(self.gl.region_get())
         
-        item = items[(len(items)+1)/2 - 1]
-        if not isinstance( curPage, int  ):
+        x, y, w, h = self.gl.region_get()
+        
+        self.pageHeightUpdate()
+        
+        '''if not isinstance( curPage, int  ):
             curPage = item.data_get()[0] + 1
+        
         self.currentPage = curPage
         self.pageNumEntry.text = str(curPage)
         
-        self.rent.mainTb.checkButtons()
+        self.rent.mainTb.checkButtons()'''
     
     def previousPage(self, obj=None):
-        self.glMoved(curPage=self.currentPage-1)
+        #self.glMoved(curPage=self.currentPage-1)
         self.glItems[self.currentPage - 1].bring_in(ELM_GENLIST_ITEM_SCROLLTO_MIDDLE)
         
     def nextPage(self, obj=None):
-        self.glMoved(curPage=self.currentPage)
+        #self.glMoved(curPage=self.currentPage)
         self.glItems[self.currentPage].bring_in(ELM_GENLIST_ITEM_SCROLLTO_MIDDLE)
         
     def zoomIncrease(self, obj=None):
@@ -645,9 +698,32 @@ class FileObject(Box):
         self.zoomFactor = max(self.zoomFactor, 0.2)
         self.pageHeightUpdate()
     
+    def getVisiblePages(self):
+        xLeft, yTop, w, h = self.gl.region_get()
+        xRight = xLeft + w
+        yBottom = yTop + h
+        
+        pages = []
+        
+        #print(self.pageBreaks)
+        #print("Top %s, Bottom %s"%(yTop, yBottom))
+        
+        for pgNm in range(self.pageCount):
+            pageTop = self.pageBreaks[pgNm - 1] if pgNm > 0 else 0
+            pageBottom = self.pageBreaks[pgNm]
+            #print("Page %s Top is at %s and Bottom is at %s"%(pgNm, pageTop, pageBottom))
+            if pageBottom > yTop and pageTop < yBottom:
+                pages.append(pgNm)
+            else:
+                if len(pages):
+                    break
+        
+        return pages
+    
     def pageHeightUpdate(self):
-        items = self.gl.realized_items_get()
-        for i in items:
+        visiblePages = self.getVisiblePages()
+        for p in visiblePages:
+            i = self.glItems[p]
             if i.data[1] != self.zoomFactor:
                 i.update()
                 i.data[1] = self.zoomFactor
@@ -882,17 +958,12 @@ class eeVeeToolbar(Toolbar):
     def checkButtons(self):
         en = self._parent.entryBox
         
-        items = en.gl.realized_items_get()
-        
-        firstItem = items[0]
-        lastItem = items[len(items)-1]
-        
-        if firstItem.data_get()[0] + 1 == 1:
+        if en.currentPage == 1:
             self.pBtn.disabled = True
         else:
             self.pBtn.disabled = False
         
-        if lastItem.data_get()[0] + 1 == en.pageCount:
+        if en.currentPage == en.pageCount:
             self.nBtn.disabled = True
         else:
             self.nBtn.disabled = False
