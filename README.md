@@ -6,7 +6,7 @@ Requires:
 - [python 2.7](https://www.python.org/)
 - [pyefl >= 1.14](http://git.enlightenment.org/bindings/python/python-efl.git/)
 - [PyPDF2](https://pythonhosted.org/PyPDF2/)
-- [elmextensions](https://github.com/JeffHoogland/python-elm-extensions)
+- [elmextensions >= 0.1.4](https://github.com/JeffHoogland/python-elm-extensions)
 
 TODO List:
 - Add loading screen for large pdfs
